@@ -1,3 +1,4 @@
+# Imports
 from dotenv import load_dotenv
 import os
 import base64
@@ -6,14 +7,13 @@ import json
 import random
 import time
 
+# Loads the environment variables ensuring they can stay in a separate file for security
 load_dotenv()
-
 client_id = os.getenv("CLIENT_ID")
 client_secret = os.getenv("CLIENT_SECRET")
 
-
+# Class that defines a Song Object as an object with a song_name and an artist_name
 class Song:
-    
     def __init__(self, song_name, artist_name):
         self.song_name = song_name
         self.artist_name = artist_name
@@ -30,7 +30,7 @@ class Song:
     def get_artist_name(self):
         return self.artist_name
     
-    
+# Methods Utilizing the Spotify API
 def get_token():
     auth_string = client_id + ":" + client_secret
     auth_bytes = auth_string.encode("utf-8")
@@ -86,7 +86,7 @@ def get_songs_by_artist(token, artist_id):
 
 
     
-    
+# SongQuiz class that defines a SongQuiz object, keeping track of the songs within the quiz; also, manages how the game runs
 class SongQuiz:
     
     def __init__(self):
@@ -149,6 +149,7 @@ class SongQuiz:
             print("Please enter 'y' or 'n'.")
         
 
+# Runs the program
 token = get_token()
 quiz = SongQuiz()
 quiz.instantiate_quiz()
