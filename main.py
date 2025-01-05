@@ -2,154 +2,193 @@
 from dotenv import load_dotenv
 import os
 import base64
-from requests import post, get
 import json
 import random
 import time
+from requests import post, get
 
-# Loads the environment variables ensuring they can stay in a separate file for security
+# Load environment variables (e.g., Spotify API credentials)
 load_dotenv()
-client_id = os.getenv("CLIENT_ID")
-client_secret = os.getenv("CLIENT_SECRET")
+CLIENT_ID = os.getenv("CLIENT_ID")
+CLIENT_SECRET = os.getenv("CLIENT_SECRET")
 
-# Class that defines a Song Object as an object with a song_name and an artist_name
+
 class Song:
+    """
+    Song class to define a song object with name and artist details
+    """
     def __init__(self, song_name, artist_name):
         self.song_name = song_name
         self.artist_name = artist_name
-    
+
     def __str__(self):
-        return f"{self.song_name} by {self.artist_name}"
-    
+        return f"'{self.song_name}' by {self.artist_name}"
+
     def __repr__(self):
-        return f"Song(name='{self.song_name}', artist='{self.artist_name}')"
-    
-    def get_song_name(self):
-        return self.song_name
-    
-    def get_artist_name(self):
-        return self.artist_name
-    
-# Methods Utilizing the Spotify API
+        return f"Song(song_name='{self.song_name}', artist_name='{self.artist_name}')"
+
+
+# Spotify API Utility Functions
 def get_token():
-    auth_string = client_id + ":" + client_secret
+    """
+    Retrieves an access token from Spotify's API using client credentials.
+    """
+    auth_string = f"{CLIENT_ID}:{CLIENT_SECRET}"
     auth_bytes = auth_string.encode("utf-8")
-    auth_base64 = str(base64.b64encode(auth_bytes), "utf-8")
+    auth_base64 = base64.b64encode(auth_bytes).decode("utf-8")
 
     url = "https://accounts.spotify.com/api/token"
     headers = {
-        "Authorization": "Basic " + auth_base64,
-        "Content-Type": "application/x-www-form-urlencoded"
+        "Authorization": f"Basic {auth_base64}",
+        "Content-Type": "application/x-www-form-urlencoded",
     }
-    
     data = {"grant_type": "client_credentials"}
-    result = post(url, headers=headers, data=data)
-    json_result = json.loads(result.content)
-    token = json_result["access_token"]
-    return token
- 
+
+    response = post(url, headers=headers, data=data)
+    response_data = response.json()
+    return response_data["access_token"]
+
+
 def get_auth_header(token):
-    return {"Authorization": "Bearer " + token}
+    """
+    Creates the Authorization header for Spotify API requests.
+    """
+    return {"Authorization": f"Bearer {token}"}
+
 
 def search_for_artist(token, artist_name):
+    """
+    Searches for an artist on Spotify by name.
+    """
     url = f"https://api.spotify.com/v1/search?q={artist_name}&type=artist&limit=1"
     headers = get_auth_header(token)
-    
-    query_url = url
-    result = get(query_url, headers = headers)
-    json_result = json.loads(result.content)["artists"]["items"]
-    if len(json_result) == 0:
-        print("No artist with this name exists!")
+
+    response = get(url, headers=headers)
+    artists = response.json().get("artists", {}).get("items", [])
+
+    if not artists:
+        print("No artist with this name found.")
         return None
-    return json_result[0]
+    return artists[0]
+
 
 def search_for_track(token, track_name):
+    """
+    Searches for a track on Spotify by name.
+    Returns a Song object with the track's name and artist.
+    """
     url = f"https://api.spotify.com/v1/search?q={track_name}&type=track&limit=1"
     headers = get_auth_header(token)
-    
-    query_url = url
-    result = get(query_url, headers = headers)
-    json_result = json.loads(result.content)
-    if len(json_result) == 0:
-        print("No song with this genre exists!")
+
+    response = get(url, headers=headers)
+    tracks = response.json().get("tracks", {}).get("items", [])
+
+    if not tracks:
+        print("No song with this name found.")
         return None
-    artist_name = json_result["tracks"]["items"][0]["album"]["artists"][0]["name"]
-    song_name = json_result["tracks"]["items"][0]["name"]
+
+    track_data = tracks[0]
+    song_name = track_data["name"]
+    artist_name = track_data["artists"][0]["name"]
     return Song(song_name, artist_name)
 
+
 def get_songs_by_artist(token, artist_id):
+    """
+    Retrieves top tracks for an artist using their Spotify artist ID.
+    """
     url = f"https://api.spotify.com/v1/artists/{artist_id}/top-tracks?country=US"
     headers = get_auth_header(token)
-    result = get(url, headers = headers)
-    json_result = json.loads(result.content)["tracks"]
-    return json_result
+
+    response = get(url, headers=headers)
+    return response.json().get("tracks", [])
 
 
-    
-# SongQuiz class that defines a SongQuiz object, keeping track of the songs within the quiz; also, manages how the game runs
+
 class SongQuiz:
-    
+    """
+    SongQuiz class to manage the quiz and its functionality
+    """
     def __init__(self):
         self.songs = []
-        self.number_of_songs = 0
-        
-    def add_song(self, track_name):
+
+    def add_song(self, token, track_name):
+        """
+        Adds a song to the quiz by searching for it on Spotify.
+        """
         searched_song = search_for_track(token, track_name)
-        confirmation = input(f"Would you like to add {searched_song} to your quiz? (y/n) ")
-        if confirmation.lower() == "y":
+        if not searched_song:
+            return False
+
+        confirmation = input(f"Would you like to add {searched_song} to your quiz? (y/n): ").strip().lower()
+        if confirmation == "y":
             if searched_song not in self.songs:
                 self.songs.append(searched_song)
                 print("Song added!")
                 return True
-            print("Song already added!")
+            print("This song is already in the quiz.")
             return False
-        else:
-            print("Song not added!")
-            return False
-        
+        print("Song not added.")
+        return False
+
     def start_quiz(self):
+        """
+        Starts the quiz, asking users to guess the artist for each song.
+        """
+        if not self.songs:
+            print("No songs in the quiz. Please add songs first!")
+            time.sleep(3)
+            self.instantiate_quiz()
+
         random.shuffle(self.songs)
-        correct = 0
-        question_number = 0
-        self.number_of_songs = len(self.songs)
-        for song in self.songs:
-            question_number += 1
-            song_name = song.get_song_name()
-            artist_name = song.get_artist_name()
-            print(f"Question {question_number}/{self.number_of_songs}:")
-            user_answer = input(f"Who is the artist of {song_name}? ")
-            if user_answer.lower() == artist_name.lower():
-                print("Correct!")
-                correct += 1
-            else:
-                print(f"That's not correct. The answer was {artist_name}.")
-        print(f"You finished the quiz! You got {correct}/{self.number_of_songs} right!")
-        time.sleep(3.5)
-        self.instantiate_quiz()
-        
-    def instantiate_quiz(self):
+        correct_answers = 0
         print("\n" * 100)
-        print("Welcome to the Song Quiz featuring the Spotify Web API!")
+        for idx, song in enumerate(self.songs, start=1):
+            print(f"Question {idx}/{len(self.songs)}: Who is the artist of '{song.song_name}'?")
+            user_answer = input("Your answer: ").strip().lower()
+
+            if user_answer == song.artist_name.lower():
+                print("Correct!")
+                correct_answers += 1
+            else:
+                print(f"Wrong! The correct answer is '{song.artist_name}'.")
+
+        print(f"You completed the quiz! You got {correct_answers}/{len(self.songs)} correct!")
+        time.sleep(3)
+        self.instantiate_quiz()
+
+    def instantiate_quiz(self):
+        """
+        Initializes the quiz, allowing users to add songs and start the game.
+        """
+        print("\n" * 100)
+        print("Welcome to the Song Quiz powered by Spotify!")
+
         while True:
-            question_addsong = input("Would you like to add a song? (y/n) ")
-            if question_addsong.lower() == "y":
-                user_search = input("What song would you like to search for? ")
-                self.add_song(user_search)
-            elif question_addsong.lower() == "n":
+            add_song_input = input("Would you like to add a song? (y/n): ").strip().lower()
+            if add_song_input == "y":
+                track_name = input("Enter the song name to search for: ").strip()
+                self.add_song(token, track_name)
+            elif add_song_input == "n":
                 break
             else:
                 print("Please enter 'y' or 'n'.")
-        question_startquiz = input("Would you like to start the quiz? (y/n) ")
-        print("\n" * 100)
-        if question_startquiz.lower() == "y":
-            self.start_quiz()
-        elif question_startquiz.lower() == "n":
-            print("Game is over.")
-        else:
-            print("Please enter 'y' or 'n'.")
-        
 
-# Runs the program
-token = get_token()
-quiz = SongQuiz()
-quiz.instantiate_quiz()
+        start_quiz_input = input("Would you like to start the quiz? (y/n): ").strip().lower()
+        if start_quiz_input == "y":
+            self.start_quiz()
+        elif start_quiz_input == "n":
+            print("Thank you for playing!")
+            time.sleep(3)
+            self.instantiate_quiz()
+        else:
+            print("Invalid input. Exiting.")
+            time.sleep(3)
+            self.instantiate_quiz()
+
+
+# Main program execution
+if __name__ == "__main__":
+    token = get_token()
+    quiz = SongQuiz()
+    quiz.instantiate_quiz()
