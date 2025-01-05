@@ -3,6 +3,8 @@ import os
 import base64
 from requests import post, get
 import json
+import random
+import time
 
 load_dotenv()
 
@@ -16,11 +18,17 @@ class Song:
         self.song_name = song_name
         self.artist_name = artist_name
     
-    def toString(self):
+    def __str__(self):
         return f"{self.song_name} by {self.artist_name}"
     
+    def __repr__(self):
+        return f"Song(name='{self.song_name}', artist='{self.artist_name}')"
     
+    def get_song_name(self):
+        return self.song_name
     
+    def get_artist_name(self):
+        return self.artist_name
     
     
 def get_token():
@@ -82,13 +90,13 @@ def get_songs_by_artist(token, artist_id):
 class SongQuiz:
     
     def __init__(self):
-        self.number_of_songs = 0
         self.songs = []
+        self.number_of_songs = 0
         
     def add_song(self, track_name):
         searched_song = search_for_track(token, track_name)
-        confirmation = input(f"Would you like to add {searched_song.toString()} to your quiz? (y/n) ")
-        if confirmation == "y":
+        confirmation = input(f"Would you like to add {searched_song} to your quiz? (y/n) ")
+        if confirmation.lower() == "y":
             if searched_song not in self.songs:
                 self.songs.append(searched_song)
                 print("Song added!")
@@ -100,10 +108,47 @@ class SongQuiz:
             return False
         
     def start_quiz(self):
+        random.shuffle(self.songs)
+        correct = 0
+        question_number = 0
+        self.number_of_songs = len(self.songs)
+        for song in self.songs:
+            question_number += 1
+            song_name = song.get_song_name()
+            artist_name = song.get_artist_name()
+            print(f"Question {question_number}/{self.number_of_songs}:")
+            user_answer = input(f"Who is the artist of {song_name}? ")
+            if user_answer.lower() == artist_name.lower():
+                print("Correct!")
+                correct += 1
+            else:
+                print(f"That's not correct. The answer was {artist_name}.")
+        print(f"You finished the quiz! You got {correct}/{self.number_of_songs} right!")
+        time.sleep(3.5)
+        self.instantiate_quiz()
         
+    def instantiate_quiz(self):
+        print("\n" * 100)
+        print("Welcome to the Song Quiz featuring the Spotify Web API!")
+        while True:
+            question_addsong = input("Would you like to add a song? (y/n) ")
+            if question_addsong.lower() == "y":
+                user_search = input("What song would you like to search for? ")
+                self.add_song(user_search)
+            elif question_addsong.lower() == "n":
+                break
+            else:
+                print("Please enter 'y' or 'n'.")
+        question_startquiz = input("Would you like to start the quiz? (y/n) ")
+        print("\n" * 100)
+        if question_startquiz.lower() == "y":
+            self.start_quiz()
+        elif question_startquiz.lower() == "n":
+            print("Game is over.")
+        else:
+            print("Please enter 'y' or 'n'.")
         
 
-search_song_input = str(input("What song would you like to search for? "))
 token = get_token()
-result = search_for_track(token, search_song_input)
-print(f"You searched for: {result[0]} by {result[1]}")
+quiz = SongQuiz()
+quiz.instantiate_quiz()
