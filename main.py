@@ -135,23 +135,48 @@ class SongQuiz:
         """
         Starts the quiz, asking users to guess the artist for each song.
         """
+        songs_or_artists = ""
+        
         if not self.songs:
             print("No songs in the quiz. Please add songs first!")
             time.sleep(3)
             self.instantiate_quiz()
 
+        while True:
+            question_songs_or_artists = input("Would you like to be quizzed on song names or artist names? (songs/artists) ")     
+            if question_songs_or_artists.strip().lower() == "songs":
+                songs_or_artists = "songs"
+                break
+            elif question_songs_or_artists == "artists":
+                songs_or_artists = "artists"
+                break
+            else:
+                print("Please enter 'songs' or 'artists'")
+                   
         random.shuffle(self.songs)
         correct_answers = 0
         print("\n" * 100)
-        for idx, song in enumerate(self.songs, start=1):
-            print(f"Question {idx}/{len(self.songs)}: Who is the artist of '{song.song_name}'?")
-            user_answer = input("Your answer: ").strip().lower()
+        if songs_or_artists == "artists":
+            for idx, song in enumerate(self.songs, start=1):
+                print(f"Question {idx}/{len(self.songs)}: Who is the artist of '{song.song_name}'?")
+                user_answer = input("Your answer: ").strip().lower()
 
-            if user_answer == song.artist_name.lower():
-                print("Correct!")
-                correct_answers += 1
-            else:
-                print(f"Wrong! The correct answer is '{song.artist_name}'.")
+                if user_answer.strip().lower() == song.artist_name.lower():
+                    print("Correct!")
+                    correct_answers += 1
+                else:
+                    print(f"Wrong! The correct answer is '{song.artist_name}'.")
+                    
+        elif songs_or_artists == "songs":
+            for idx, song in enumerate(self.songs, start=1):
+                print(f"Question {idx}/{len(self.songs)}: What song did the artist '{song.artist_name} make?")
+                user_answer = input("Your answer: ").strip().lower()
+
+                if user_answer.strip().lower() == song.song_name.lower():
+                    print("Correct!")
+                    correct_answers += 1
+                else:
+                    print(f"Wrong! The correct answer is '{song.song_name}'.")
 
         print(f"You completed the quiz! You got {correct_answers}/{len(self.songs)} correct!")
         time.sleep(3)
